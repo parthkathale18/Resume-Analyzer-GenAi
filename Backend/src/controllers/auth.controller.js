@@ -1,6 +1,9 @@
 const userModel = require("../models/user.model");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const tokenBlackListModel = require("../models/blacklist.model");
+
+
 /* 
 * @name registerUserController
 * @desc expects new user details in the request body and creates a new user in the database
@@ -32,7 +35,7 @@ async function registerUserController(req, res) {
 
     const hash = await bcrypt.hash(password, 10);
 
-    const user = new userModel({
+    const user = await userModel.create({
         username,
         email,
         password: hash
@@ -45,7 +48,8 @@ async function registerUserController(req, res) {
     )
 
     res.cookie("token", token)
-    res.status(201).jsopn({
+
+    res.status(201).json({
         message: "User registered successfully",
         user:{
             id: user._id,
@@ -97,10 +101,49 @@ async function loginUserController(req, res) {
     })
 }
 
+/* 
+* @name logoutUserController
+* @desc logs out the user by clearing the token cookie
+* @access Public
+*/
+async function logoutUserController(req, res) {
+    const token = req.cookies.token;
+    if(token){
+        await tokenBlackListModel.create({token});
+    }
+    res.clearCookie("token")
+    res.status(200).json({
+        message: "User logged out successfully"
+    })
+}
 
+/* 
+* @name getMeController
+* @desc gets the logged in user's details using the user id from the token
+* @access Private
+*/
+async function getMeController(req, res) {
+    const user = await userModel.findById(req.user.id)
+    res.status(200).json({
+        message:" User details fetched successfully",
+        user:{
+            id: user._id,
+            username: user.username,
+            email: user.email
+        }
+    })
+}
 
 
 module.exports = {
     registerUserController,
-    loginUserController
+    loginUserController,
+    logoutUserController,
+    getMeController
 }
+
+
+
+
+
+
